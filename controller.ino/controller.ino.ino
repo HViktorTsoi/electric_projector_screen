@@ -13,12 +13,12 @@
 
 // #define wifi_name "郊眠观"                        //WIFI名称，区分大小写，不要写错
 // #define wifi_password "q7kpyfzuk9fm"              //WIFI密码
-#define wifi_name "Space Robots"                        //WIFI名称，区分大小写，不要写错
-#define wifi_password "xxxy5044"              //WIFI密码
+#define wifi_name "Space Robots"                  //WIFI名称，区分大小写，不要写错
+#define wifi_password "xxxy5044"                  //WIFI密码
 String UID = "fdaa161508444738bbaf2dcfac76b463";  //用户私钥，
 String TOPIC = "screen002";                       //主题名字，可在控制台新建
 const int PIN_PWM_MOTOR = 13;                     // Motor PWM输出
-const uint16_t PIN_IR = 14; // An IR detector/demodulator is connected to GPIO pin 14 Note: GPIO 16 won't work on the ESP8266 as it does not have interrupts.
+const uint16_t PIN_IR = 14;                       // An IR detector/demodulator is connected to GPIO pin 14 Note: GPIO 16 won't work on the ESP8266 as it does not have interrupts.
 const int PIN_SWITCH = 12;                        // 微动开关
 const int PIN_LED_BREAKOUT = 16;                  // 载板 LED
 const int PIN_LED_SOM = 2;                        // SOM LED
@@ -119,7 +119,7 @@ void startTCPClient() {
 
     preTCPConnected = true;
     TCPclient.setNoDelay(true);
-    digitalWrite(PIN_LED_BREAKOUT, LOW);
+    analogWrite(PIN_LED_BREAKOUT, 1950);
   } else {
     Serial.print("Failed connected to server:");
     Serial.println(server_ip);
@@ -316,63 +316,62 @@ void toggle_screen() {
   Serial.printf("ST: %d\n", screen_state);
 }
 
-// 开启电机
+// 上升
 void screen_up() {
-  // Serial.println("Turn ON");
-  digitalWrite(PIN_LED_SOM, LOW);
-  // 缓启动
-  analogWrite(PIN_PWM_MOTOR, 155);
-  delay(1000);
-  analogWrite(PIN_PWM_MOTOR, 165);
-  delay(1000);
-  // 等待一段时间电机卷上去
-  analogWrite(PIN_PWM_MOTOR, 170);
-  for (int i = 0; i < max(0, SECS_UP - 3); ++i) {
-    delay(1000);
+  // 首先判断是不是已经到达顶端 如果已经在顶端直接返回 保证安全
+  if (digitalRead(PIN_SWITCH) == 0) {
+    return;
   }
-  // 缓停止
-  analogWrite(PIN_PWM_MOTOR, 160);
-  delay(1000);
-  // 锁住电机
-  analogWrite(PIN_PWM_MOTOR, 150);
 
-  digitalWrite(PIN_LED_SOM, HIGH);
+  // 电机启动控制序列
+  uint8_t motor_seed_sequence[] = { 155, 165, 170, 165, 160 };
+  uint32_t motor_delay_time_ms[] = { 1000, 500, 6000, 1000, 6000 };
+  const uint32_t min_delay_time_ms = 10;
+
+  for (int i = 0; i < sizeof(motor_seed_sequence) / sizeof(uint8_t); ++i) {
+    // 控制电机到对应的转速
+    digitalWrite(PIN_LED_SOM, LOW);
+    analogWrite(PIN_PWM_MOTOR, motor_seed_sequence[i]);
+    // delay 对应的秒数
+    for (int j = 0; j < motor_delay_time_ms[i]; j += min_delay_time_ms) {
+      delay(min_delay_time_ms);
+      Serial.printf("SPEED: %d\n", motor_seed_sequence[i]);
+      // 检查是否到达顶端
+      if (digitalRead(PIN_SWITCH) == 0) {
+        // 到达顶端 停止电机并返回
+        Serial.printf("STOP\n");
+        analogWrite(PIN_PWM_MOTOR, 150);
+        digitalWrite(PIN_LED_SOM, HIGH);
+        return;
+      }
+    }
+  }
+  // 如果一直没检测到微动开关 到达最长时间后停止电机
+  analogWrite(PIN_PWM_MOTOR, 150);
 }
 
-//关闭灯泡
+// 屏幕下降
 void screen_down() {
-  // // Serial.println("Turn OFF");
-  // // 释放电机 重力阻尼下降
-  // analogWrite(PIN_PWM_MOTOR, 0);
+  // 电机下降控制序列
+  uint8_t motor_seed_sequence[] = { 145, 140, 130, 135, 145 };
+  uint32_t motor_delay_time_ms[] = { 1000, 1000, 5000, 1000, 1000 };
+  const uint32_t min_delay_time_ms = 10;
 
-  // // 等待一段时间
-  // for (int i = 0; i < SECS_DOWN; ++i) {
-  //   delay(500);
-  //   digitalWrite(PIN_LED_SOM, LOW);
-  //   delay(500);
-  //   digitalWrite(PIN_LED_SOM, HIGH);
-  // }
-  // digitalWrite(PIN_LED_SOM, HIGH);
-
-  // Serial.println("Turn ON");
-  digitalWrite(PIN_LED_SOM, LOW);
-  // 缓启动
-  analogWrite(PIN_PWM_MOTOR, 145);
-  delay(1000);
-  analogWrite(PIN_PWM_MOTOR, 135);
-  delay(1000);
-  // 等待一段时间电机卷上去
-  analogWrite(PIN_PWM_MOTOR, 130);
-  for (int i = 0; i < max(0, SECS_DOWN - 3); ++i) {
-    delay(1000);
+  for (int i = 0; i < sizeof(motor_seed_sequence) / sizeof(uint8_t); ++i) {
+    // 控制电机到对应的转速
+    analogWrite(PIN_PWM_MOTOR, motor_seed_sequence[i]);
+    // delay 对应的秒数
+    for (int j = 0; j < motor_delay_time_ms[i]; j += min_delay_time_ms) {
+      delay(min_delay_time_ms);
+      if (j % 200 == 0) {
+        digitalWrite(PIN_LED_SOM, !digitalRead(PIN_LED_SOM));
+      }
+      Serial.printf("SPEED: %d\n", motor_seed_sequence[i]);
+    }
   }
-  // 缓停止
-  analogWrite(PIN_PWM_MOTOR, 140);
-  delay(1000);
-  // 锁住电机
-  analogWrite(PIN_PWM_MOTOR, 0);
-
+  // 最后释放电机
   digitalWrite(PIN_LED_SOM, HIGH);
+  analogWrite(PIN_PWM_MOTOR, 0);
 }
 
 
@@ -413,6 +412,4 @@ void loop() {
   doWiFiTick();
   doTCPClientTick();
   doIRTick();
-  // Serial.printf("GPIO12: %d\n", digitalRead(PIN_SWITCH));
-  // delay(100);
 }
