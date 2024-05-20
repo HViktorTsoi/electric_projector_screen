@@ -129,6 +129,33 @@ void startTCPClient() {
   preTCPStartTick = millis();
 }
 
+/*
+  *上传开关状态
+*/
+void upload_screen_status(String status) {
+  if (TCPclient.connect(server_ip, atoi(server_port))) {
+    digitalWrite(PIN_LED_BREAKOUT, HIGH);
+    Serial.print("\nConnected to server:");
+    Serial.printf("%s:%d\r\n", server_ip, atoi(server_port));
+
+    String tcpTemp = "";                                        //初始化字符串
+    tcpTemp = "cmd=2&uid=" + UID + "&topic=" + TOPIC + "/up&msg=" + status + "\r\n";  //构建订阅指令
+    sendtoTCPServer(tcpTemp);                                   //发送订阅指令
+
+    tcpTemp = "";                                               //清空
+    tcpTemp = "cmd=1&uid=" + UID + "&topic=" + TOPIC + "\r\n";  //构建订阅指令
+    sendtoTCPServer(tcpTemp);                                   //发送订阅指令
+    tcpTemp = ""; 
+    // preTCPConnected = true;
+    // TCPclient.setNoDelay(true);
+  } else {
+    Serial.print("Failed connected to server:");
+    Serial.println(server_ip);
+    TCPclient.stopAll();
+    preTCPConnected = false;
+  }
+  preTCPStartTick = millis();
+}
 
 /*
   *检查数据，发送心跳
@@ -300,9 +327,6 @@ enum SCREEN_STATE { UP,
 
 SCREEN_STATE screen_state;
 
-int SECS_UP = 9;
-int SECS_DOWN = 8;
-
 void toggle_screen() {
   if (screen_state == UP) {
     // 降低屏幕
@@ -348,13 +372,16 @@ void screen_up() {
   }
   // 如果一直没检测到微动开关 到达最长时间后停止电机
   analogWrite(PIN_PWM_MOTOR, 150);
+  
+  // 更新电机状态
+  upload_screen_status("on");
 }
 
 // 屏幕下降
 void screen_down() {
   // 电机下降控制序列
   uint8_t motor_seed_sequence[] = { 145, 140, 130, 135, 145 };
-  uint32_t motor_delay_time_ms[] = { 1000, 1000, 5000, 1000, 1000 };
+  uint32_t motor_delay_time_ms[] = { 1000, 1000, 5000, 2000, 1000 };
   const uint32_t min_delay_time_ms = 10;
 
   for (int i = 0; i < sizeof(motor_seed_sequence) / sizeof(uint8_t); ++i) {
@@ -372,6 +399,9 @@ void screen_down() {
   // 最后释放电机
   digitalWrite(PIN_LED_SOM, HIGH);
   analogWrite(PIN_PWM_MOTOR, 0);
+
+  // 更新电机状态
+  upload_screen_status("off");
 }
 
 
@@ -411,5 +441,8 @@ void setup() {
 void loop() {
   doWiFiTick();
   doTCPClientTick();
-  doIRTick();
+  // upload_screen_status("off");
+  // delay(5000);
+  // upload_screen_status("on");
+  // delay(5000);
 }
