@@ -300,10 +300,11 @@ void doIRTick() {
     if (decode_msg.equals("0xFF38C7")) {
       Serial.print("OK\n");
       toggle_screen();
+      // analogWrite(PIN_PWM_MOTOR, 180);
     }
     // if (decode_msg.equals("0xFFB04F")) {
     //   Serial.print("#\n");
-    //   screen_down();
+    //   // analogWrite(PIN_PWM_MOTOR, 0);
     // }
     // if (decode_msg.equals("0xFF18E7")) {
     //   Serial.print("UP\n");
@@ -366,12 +367,16 @@ void screen_up() {
         Serial.printf("STOP\n");
         analogWrite(PIN_PWM_MOTOR, 150);
         digitalWrite(PIN_LED_SOM, HIGH);
+        // 更新电机状态
+        upload_screen_status("on");
+        
         return;
       }
     }
   }
   // 如果一直没检测到微动开关 到达最长时间后停止电机
   analogWrite(PIN_PWM_MOTOR, 150);
+  digitalWrite(PIN_LED_SOM, HIGH);
   
   // 更新电机状态
   upload_screen_status("on");
@@ -441,6 +446,7 @@ void setup() {
 void loop() {
   doWiFiTick();
   doTCPClientTick();
+  doIRTick();
   // upload_screen_status("off");
   // delay(5000);
   // upload_screen_status("on");
