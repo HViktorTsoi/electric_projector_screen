@@ -11,10 +11,12 @@
 
 //********************需要修改的部分*******************//
 
-// #define wifi_name "郊眠观"                        //WIFI名称，区分大小写，不要写错
-// #define wifi_password "q7kpyfzuk9fm"              //WIFI密码
-#define wifi_name "Space Robots"                  //WIFI名称，区分大小写，不要写错
-#define wifi_password "xxxy5044"                  //WIFI密码
+#define wifi_name "郊眠观"                        //WIFI名称，区分大小写，不要写错
+#define wifi_password "q7kpyfzuk9fm"              //WIFI密码
+// #define wifi_name "Space Robots"                  //WIFI名称，区分大小写，不要写错
+// #define wifi_password "xxxy5044"                  //WIFI密码
+// #define wifi_name "KINO"                  //WIFI名称，区分大小写，不要写错
+// #define wifi_password "hvthvthvt"                  //WIFI密码
 String UID = "fdaa161508444738bbaf2dcfac76b463";  //用户私钥，
 String TOPIC = "screen002";                       //主题名字，可在控制台新建
 const int PIN_PWM_MOTOR = 13;                     // Motor PWM输出
@@ -301,18 +303,18 @@ void doIRTick() {
       Serial.print("OK\n");
       toggle_screen();
     }
-    if (decode_msg.equals("0xFFB04F")) {
-      Serial.print("#\n");
-      analogWrite(PIN_PWM_MOTOR, 0);
-    }
-    if (decode_msg.equals("0xFF18E7")) {
-      Serial.print("UP\n");
-      analogWrite(PIN_PWM_MOTOR, 160);
-    }
-    if (decode_msg.equals("0xFF4AB5")) {
-      Serial.print("DOWN\n");
-      analogWrite(PIN_PWM_MOTOR, 140);
-    }
+    // if (decode_msg.equals("0xFFB04F")) {
+    //   Serial.print("#\n");
+    //   analogWrite(PIN_PWM_MOTOR, 0);
+    // }
+    // if (decode_msg.equals("0xFF18E7")) {
+    //   Serial.print("UP\n");
+    //   analogWrite(PIN_PWM_MOTOR, 160);
+    // }
+    // if (decode_msg.equals("0xFF4AB5")) {
+    //   Serial.print("DOWN\n");
+    //   analogWrite(PIN_PWM_MOTOR, 140);
+    // }
     // yield();  // Feed the WDT (again)
   }
 }
@@ -350,8 +352,8 @@ void screen_up() {
   }
 
   // 电机启动控制序列
-  uint8_t motor_seed_sequence[] = { 155, 165, 170, 165, 160 };
-  uint32_t motor_delay_time_ms[] = { 1000, 500, 6000, 1000, 6000 };
+  uint8_t motor_seed_sequence[] = { 155, 165, 170, 165, 160, 155 };
+  uint32_t motor_delay_time_ms[] = { 1000, 500, 3500, 1800, 500, 8000 };
   const uint32_t min_delay_time_ms = 10;
 
   for (int i = 0; i < sizeof(motor_seed_sequence) / sizeof(uint8_t); ++i) {
@@ -387,7 +389,7 @@ void screen_up() {
 void screen_down() {
   // 电机下降控制序列
   uint8_t motor_seed_sequence[] = { 145, 140, 130, 135, 145 };
-  uint32_t motor_delay_time_ms[] = { 1000, 1000, 5000, 2000, 1000 };
+  uint32_t motor_delay_time_ms[] = { 1000, 1000, 3000, 2600, 1800 };
   const uint32_t min_delay_time_ms = 10;
 
   for (int i = 0; i < sizeof(motor_seed_sequence) / sizeof(uint8_t); ++i) {
@@ -441,6 +443,9 @@ void setup() {
 #endif                                        // DECODE_HASH
   irrecv.setTolerance(kTolerancePercentage);  // Override the default tolerance.
   irrecv.enableIRIn();                        // Start the receiver
+
+  // TODO 初始向云端推送状态消息
+  // TODO 初始向上触碰微动开关 重置状态
 }
 
 //循环
