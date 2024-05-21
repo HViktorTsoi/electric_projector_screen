@@ -138,14 +138,14 @@ void upload_screen_status(String status) {
     Serial.print("\nConnected to server:");
     Serial.printf("%s:%d\r\n", server_ip, atoi(server_port));
 
-    String tcpTemp = "";                                        //初始化字符串
+    String tcpTemp = "";                                                              //初始化字符串
     tcpTemp = "cmd=2&uid=" + UID + "&topic=" + TOPIC + "/up&msg=" + status + "\r\n";  //构建订阅指令
-    sendtoTCPServer(tcpTemp);                                   //发送订阅指令
+    sendtoTCPServer(tcpTemp);                                                         //发送订阅指令
 
     tcpTemp = "";                                               //清空
     tcpTemp = "cmd=1&uid=" + UID + "&topic=" + TOPIC + "\r\n";  //构建订阅指令
     sendtoTCPServer(tcpTemp);                                   //发送订阅指令
-    tcpTemp = ""; 
+    tcpTemp = "";
     // preTCPConnected = true;
     // TCPclient.setNoDelay(true);
   } else {
@@ -300,18 +300,19 @@ void doIRTick() {
     if (decode_msg.equals("0xFF38C7")) {
       Serial.print("OK\n");
       toggle_screen();
-      // analogWrite(PIN_PWM_MOTOR, 180);
     }
-    // if (decode_msg.equals("0xFFB04F")) {
-    //   Serial.print("#\n");
-    //   // analogWrite(PIN_PWM_MOTOR, 0);
-    // }
-    // if (decode_msg.equals("0xFF18E7")) {
-    //   Serial.print("UP\n");
-    // }
-    // if (decode_msg.equals("0xFF4AB5")) {
-    //   Serial.print("DOWN\n");
-    // }
+    if (decode_msg.equals("0xFFB04F")) {
+      Serial.print("#\n");
+      analogWrite(PIN_PWM_MOTOR, 0);
+    }
+    if (decode_msg.equals("0xFF18E7")) {
+      Serial.print("UP\n");
+      analogWrite(PIN_PWM_MOTOR, 160);
+    }
+    if (decode_msg.equals("0xFF4AB5")) {
+      Serial.print("DOWN\n");
+      analogWrite(PIN_PWM_MOTOR, 140);
+    }
     // yield();  // Feed the WDT (again)
   }
 }
@@ -369,7 +370,7 @@ void screen_up() {
         digitalWrite(PIN_LED_SOM, HIGH);
         // 更新电机状态
         upload_screen_status("on");
-        
+
         return;
       }
     }
@@ -377,7 +378,7 @@ void screen_up() {
   // 如果一直没检测到微动开关 到达最长时间后停止电机
   analogWrite(PIN_PWM_MOTOR, 150);
   digitalWrite(PIN_LED_SOM, HIGH);
-  
+
   // 更新电机状态
   upload_screen_status("on");
 }
