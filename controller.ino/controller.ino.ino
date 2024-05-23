@@ -11,12 +11,12 @@
 
 //********************需要修改的部分*******************//
 
-#define wifi_name "郊眠观"                        //WIFI名称，区分大小写，不要写错
-#define wifi_password "q7kpyfzuk9fm"              //WIFI密码
+#define wifi_name "郊眠观"            //WIFI名称，区分大小写，不要写错
+#define wifi_password "q7kpyfzuk9fm"  //WIFI密码
 // #define wifi_name "Space Robots"                  //WIFI名称，区分大小写，不要写错
 // #define wifi_password "xxxy5044"                  //WIFI密码
-// #define wifi_name "KINO"                  //WIFI名称，区分大小写，不要写错
-// #define wifi_password "hvthvthvt"                  //WIFI密码
+// #define wifi_name "KINO"                          //WIFI名称，区分大小写，不要写错
+// #define wifi_password "hvthvthvt"                 //WIFI密码
 String UID = "fdaa161508444738bbaf2dcfac76b463";  //用户私钥，
 String TOPIC = "screen002";                       //主题名字，可在控制台新建
 const int PIN_PWM_MOTOR = 13;                     // Motor PWM输出
@@ -213,8 +213,10 @@ void doTCPClientTick() {
     }
 
     // 接收到消息 toggle screen
-    if (getMsg == "on" || getMsg == "off") {
-      toggle_screen();
+    if (getMsg == "on") {
+      toggle_screen("UP");
+    } else if (getMsg == "off") {
+      toggle_screen("DOWN");
     }
     // int intensity = -1;
     // int intensity_pos = getMsg.indexOf('#');
@@ -301,20 +303,20 @@ void doIRTick() {
     String decode_msg = resultToHexidecimal(&results);
     if (decode_msg.equals("0xFF38C7")) {
       Serial.print("OK\n");
-      toggle_screen();
+      toggle_screen("");
     }
     // if (decode_msg.equals("0xFFB04F")) {
     //   Serial.print("#\n");
     //   analogWrite(PIN_PWM_MOTOR, 0);
     // }
-    // if (decode_msg.equals("0xFF18E7")) {
-    //   Serial.print("UP\n");
-    //   analogWrite(PIN_PWM_MOTOR, 160);
-    // }
-    // if (decode_msg.equals("0xFF4AB5")) {
-    //   Serial.print("DOWN\n");
-    //   analogWrite(PIN_PWM_MOTOR, 140);
-    // }
+    if (decode_msg.equals("0xFF18E7")) {
+      Serial.print("UP\n");
+      toggle_screen("UP");
+    }
+    if (decode_msg.equals("0xFF4AB5")) {
+      Serial.print("DOWN\n");
+      toggle_screen("DOWN");
+    }
     // yield();  // Feed the WDT (again)
   }
 }
@@ -331,21 +333,50 @@ enum SCREEN_STATE { UP,
 
 SCREEN_STATE screen_state;
 
-void toggle_screen() {
-  if (screen_state == UP) {
-    // 降低屏幕
-    screen_down();
-    screen_state = DOWN;
-  } else if (screen_state == DOWN) {
-    // 升起屏幕
-    screen_up();
-    screen_state = UP;
+long last_operation_time_sec = 0;
+
+void toggle_screen(String control) {
+  long current_time_sec = millis() / 1000;
+
+  Serial.printf("LAST: %ld  CUR: %ld\n ", last_operation_time_sec, current_time_sec);
+  // 仅当上一操作和下一操作间隔一定时间时才执行操作 防止连续触发
+  if (abs(current_time_sec - last_operation_time_sec) < 2) {
+    return;    
   }
-  Serial.printf("ST: %d\n", screen_state);
+
+  if (control.isEmpty()) {
+    if (screen_state == UP) {
+      // 降低屏幕
+      screen_down();
+      screen_state = DOWN;
+    } else if (screen_state == DOWN) {
+      // 升起屏幕
+      screen_up();
+      screen_state = UP;
+    }
+  } else if (control.equals("UP")) {
+    // 仅当state是DOWN时执行UP的命令
+    if (screen_state == DOWN) {
+      // 升起屏幕
+      screen_up();
+      screen_state = UP;
+    }
+  } else if (control.equals("DOWN")) {
+    // 仅当state是UP执行DOWN的命令
+    if (screen_state == UP) {
+      // 升起屏幕
+      screen_down();
+      screen_state = DOWN;
+    }
+  }
+
+  last_operation_time_sec = millis() / 1000;;
+  Serial.printf("ST: %d\n ", screen_state);
 }
 
 // 上升
 void screen_up() {
+
   // 首先判断是不是已经到达顶端 如果已经在顶端直接返回 保证安全
   if (digitalRead(PIN_SWITCH) == 0) {
     return;
@@ -363,7 +394,7 @@ void screen_up() {
     // delay 对应的秒数
     for (int j = 0; j < motor_delay_time_ms[i]; j += min_delay_time_ms) {
       delay(min_delay_time_ms);
-      Serial.printf("SPEED: %d\n", motor_seed_sequence[i]);
+      // Serial.printf("SPEED: %d\n", motor_seed_sequence[i]);
       // 检查是否到达顶端
       if (digitalRead(PIN_SWITCH) == 0) {
         // 到达顶端 停止电机并返回
@@ -389,7 +420,7 @@ void screen_up() {
 void screen_down() {
   // 电机下降控制序列
   uint8_t motor_seed_sequence[] = { 145, 140, 130, 135, 145 };
-  uint32_t motor_delay_time_ms[] = { 1000, 1000, 3000, 2600, 1800 };
+  uint32_t motor_delay_time_ms[] = { 1000, 1000, 3000, 2900, 2000 };
   const uint32_t min_delay_time_ms = 10;
 
   for (int i = 0; i < sizeof(motor_seed_sequence) / sizeof(uint8_t); ++i) {
@@ -401,7 +432,7 @@ void screen_down() {
       if (j % 200 == 0) {
         digitalWrite(PIN_LED_SOM, !digitalRead(PIN_LED_SOM));
       }
-      Serial.printf("SPEED: %d\n", motor_seed_sequence[i]);
+      // Serial.printf("SPEED: %d\n", motor_seed_sequence[i]);
     }
   }
   // 最后释放电机
